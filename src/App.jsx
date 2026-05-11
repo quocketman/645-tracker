@@ -52,38 +52,59 @@ const DEMOS = {
   'Push-ups': demo('push-up form'),
 };
 
+// Anchor: Round 2 starts Mon 2026-05-11.
+function defaultDate(week, day) {
+  const dayIdx = DAYS.indexOf(day);
+  const d = new Date(Date.UTC(2026, 4, 11));
+  d.setUTCDate(d.getUTCDate() + (week - 1) * 7 + dayIdx);
+  return d.toISOString().slice(0, 10);
+}
+
+// Pull a clean leading rep pattern out of a target string.
+// "15 reps" → "15"; "15/15 reps" → "15/15"; "8–10 reps per leg" → "8–10";
+// "30 sec" → "30"; "10→9→…" → "" (too complex to prefill).
+function parseTargetReps(target) {
+  if (!target) return '';
+  if (target.includes('→') || target.includes('…')) return '';
+  const m = target.match(/^(\d+(?:\.\d+)?(?:\s*[\/\-–+]\s*\d+(?:\.\d+)?)*)/);
+  return m ? m[1].replace(/\s+/g, '') : '';
+}
+
+// Extras now split into `superset` (interleaved between main blocks, twice)
+// and `finisher` (after the last block). Days without a main workout render
+// both standalone.
 const getExtra = (week, day) => {
   switch (day) {
     case 'Mon':
       return week % 2 === 1
         ? {
             label: 'Upper Strength · 15 min',
-            exercises: [
+            superset: [
               { name: 'Pull-ups', target: '5 reps', sets: 3, bw: true },
               { name: 'DB Bicep Curls', target: '10 reps', sets: 3 }
             ],
-            note: 'Superset. Repeat for 15 min, rest as needed.'
+            note: 'Superset: pull-ups + curls. Two rounds of 3 sets interleaved between strength blocks.'
           }
         : {
             label: 'Upper Strength · 15 min',
-            exercises: [
+            superset: [
               { name: 'Push-ups', target: '10 reps', sets: 3, bw: true },
               { name: 'Bent-over Rows', target: '10 reps', sets: 3 }
             ],
-            note: 'Superset. Repeat for 15 min, rest as needed.'
+            note: 'Superset: push-ups + rows. Two rounds of 3 sets interleaved between strength blocks.'
           };
     case 'Tue': {
       const tueRot = ((week - 1) % 4) + 1;
       if (tueRot === 1) return {
         label: 'HIIT · Burpee Ladder',
-        exercises: [
+        finisher: [
           { name: 'Burpees', target: '10→9→8→…→1 reps', sets: 0, bw: true, demoKey: 'Burpee Ladder' }
         ],
         note: 'Descending ladder: 10 burpees, rest, 9 burpees, rest, down to 1. Aim to finish in 15 min.'
       };
       if (tueRot === 2) return {
         label: 'HIIT · EMOM 15',
-        exercises: [
+        finisher: [
           { name: 'Squat Jumps (odd minutes)', target: '10 reps', sets: 0, bw: true, demoKey: 'Squat Jumps' },
           { name: 'Burpees (even minutes)', target: '5 reps', sets: 0, bw: true, demoKey: 'Burpees' }
         ],
@@ -91,7 +112,7 @@ const getExtra = (week, day) => {
       };
       if (tueRot === 3) return {
         label: 'HIIT · Tabata × 2',
-        exercises: [
+        finisher: [
           { name: 'Burpees', target: '8 rounds · 20s on / 10s off', sets: 0, bw: true, demoKey: 'Tabata' },
           { name: 'Squat Jumps', target: '8 rounds · 20s on / 10s off', sets: 0, bw: true, demoKey: 'Squat Jumps' }
         ],
@@ -99,7 +120,7 @@ const getExtra = (week, day) => {
       };
       return {
         label: 'HIIT · Death by Burpees',
-        exercises: [
+        finisher: [
           { name: 'Burpees', target: 'Min 1: 1 rep, Min 2: 2 reps… until failure', sets: 0, bw: true, demoKey: 'Death by Burpees' }
         ],
         note: 'Add 1 burpee per minute. Stop when you can\'t finish the round in 60 seconds.'
@@ -108,7 +129,7 @@ const getExtra = (week, day) => {
     case 'Wed':
       return {
         label: 'Recovery · 15 min',
-        exercises: [
+        finisher: [
           { name: 'Pigeon Pose', target: '2 min per side', sets: 0, bw: true },
           { name: 'Couch Stretch (hip flexor)', target: '90 sec per side', sets: 0, bw: true },
           { name: 'Thoracic Opener / Child\'s Pose', target: '2 min', sets: 0, bw: true },
@@ -119,28 +140,32 @@ const getExtra = (week, day) => {
     case 'Thu':
       return {
         label: 'Arm Pump + Cardio · 15 min',
-        exercises: [
-          { name: 'DB Bicep Curls', target: '12 reps · 3 rounds', sets: 3 },
-          { name: 'Overhead Tricep Extensions', target: '12 reps · 3 rounds', sets: 3 },
+        superset: [
+          { name: 'DB Bicep Curls', target: '12 reps', sets: 3 },
+          { name: 'Overhead Tricep Extensions', target: '12 reps', sets: 3 }
+        ],
+        finisher: [
           { name: 'Cardio Finisher', target: '7 min', sets: 0, bw: true }
         ],
-        note: '8 min: superset of curls + tricep extensions, 3 rounds. 7 min cardio: jump rope, stair intervals, or banded hill walk.'
+        note: 'Superset curls + tricep extensions (two rounds between blocks). 7-min cardio at the end: jump rope, stair intervals, or banded hill walk.'
       };
     case 'Fri':
       return {
         label: 'Lower + Core · 15 min',
-        exercises: [
+        superset: [
           { name: 'Romanian Deadlifts', target: '10 reps', sets: 3 },
-          { name: 'Bulgarian Split Squats', target: '8–10 reps per leg', sets: 3 },
-          { name: 'Plank', target: '2 min accumulated (finisher)', sets: 0, bw: true }
+          { name: 'Bulgarian Split Squats', target: '8–10 reps per leg', sets: 3 }
         ],
-        note: '3 rounds of RDLs + split squats. Finish with plank.'
+        finisher: [
+          { name: 'Plank', target: '2 min accumulated', sets: 0, bw: true }
+        ],
+        note: 'Superset RDLs + split squats (two rounds between blocks). Finish with plank.'
       };
     case 'Sat': {
       const satRot = ((week - 1) % 3) + 1;
       if (satRot === 1) return {
         label: 'Cardio Finisher · 15 min',
-        exercises: [
+        finisher: [
           { name: 'Burpees', target: '10 reps', sets: 0, bw: true },
           { name: 'Push-ups', target: '10 reps', sets: 0, bw: true }
         ],
@@ -148,7 +173,7 @@ const getExtra = (week, day) => {
       };
       if (satRot === 2) return {
         label: 'Cardio Finisher · 15 min',
-        exercises: [
+        finisher: [
           { name: 'Squat Jumps', target: '15 reps', sets: 0, bw: true },
           { name: 'Push-ups', target: '10 reps', sets: 0, bw: true }
         ],
@@ -156,7 +181,7 @@ const getExtra = (week, day) => {
       };
       return {
         label: 'Cardio Finisher · 15 min',
-        exercises: [
+        finisher: [
           { name: 'Burpee + Squat Jump combo', target: '50 reps for time', sets: 0, bw: true }
         ],
         note: '1 burpee + 3 squat jumps = 1 rep. 50 reps total, fastest time wins.'
@@ -165,7 +190,7 @@ const getExtra = (week, day) => {
     case 'Sun':
       return {
         label: 'Optional Recovery',
-        exercises: [
+        finisher: [
           { name: 'Deep Stretching', target: '10 min (2+ min holds)', sets: 0, bw: true },
           { name: 'Box Breathing (4-4-4-4)', target: '5 min', sets: 0, bw: true }
         ],
@@ -176,7 +201,7 @@ const getExtra = (week, day) => {
   }
 };
 
-const STORAGE_KEY = 'tracker-645-v3';
+const STORAGE_KEY = 'tracker-645-v4';
 
 export default function Tracker645() {
   const [data, setData] = useState(() => {
@@ -380,31 +405,17 @@ function CheckDot({ small }) {
   );
 }
 
-// Split an extra's exercises into two halves to interleave between 645 blocks.
-// 1 exercise → all in first gap. 2 → 1+1. 3 → 2+1. 4+ → ceil(n/2) + rest.
-function splitExtras(exercises) {
-  if (!exercises || exercises.length === 0) return [[], []];
-  if (exercises.length === 1) return [exercises, []];
-  const mid = Math.ceil(exercises.length / 2);
-  return [exercises.slice(0, mid), exercises.slice(mid)];
-}
-
 function DayView({ week, day, entry, onUpdate, onBack }) {
   const w645 = WORKOUT_645[day];
   const program = PROGRAM[week]?.[day];
   const extra = getExtra(week, day);
   const isRest = day === 'Sun';
   const logs = entry.logs || {};
+  const dateValue = entry.date || defaultDate(week, day);
 
-  const updateLog = (exName, patch) => {
-    onUpdate({ logs: { ...logs, [exName]: { ...(logs[exName] || {}), ...patch } } });
+  const updateLog = (logKey, patch) => {
+    onUpdate({ logs: { ...logs, [logKey]: { ...(logs[logKey] || {}), ...patch } } });
   };
-
-  // Interleave extra exercises between 645 blocks when both exist.
-  const canInterleave = program && program.blocks.length >= 2 && extra;
-  const [extraPart1, extraPart2] = canInterleave
-    ? splitExtras(extra.exercises)
-    : [[], []];
 
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 pb-32">
@@ -420,6 +431,19 @@ function DayView({ week, day, entry, onUpdate, onBack }) {
             <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Week {week}</div>
             <div className="text-base font-medium" style={{ fontFamily: 'Fraunces, serif' }}>{DAY_FULL[day]}</div>
           </div>
+        </div>
+      </div>
+
+      {/* Date row */}
+      <div className="px-5 pt-5">
+        <div className="flex items-center justify-between gap-3 bg-neutral-900 rounded-lg px-4 py-2.5">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Date</div>
+          <input
+            type="date"
+            value={dateValue}
+            onChange={(e) => onUpdate({ date: e.target.value })}
+            className="bg-transparent text-sm text-neutral-100 focus:outline-none tabular-nums"
+          />
         </div>
       </div>
 
@@ -462,54 +486,51 @@ function DayView({ week, day, entry, onUpdate, onBack }) {
         )}
       </div>
 
-      {/* Interleaved sequence: Block 1 → Extra part 1 → Block 2 → Extra part 2 → Block 3 */}
+      {/* Interleaved sequence:
+          Block 1 → Superset R1 → Block 2 → Superset R2 → Block 3 → Finisher */}
       {program && (
         <div className="px-5 pt-10 space-y-8">
           <BlockSection block={program.blocks[0]} logs={logs} onLogChange={updateLog} dayColor={w645.color} />
 
-          {extraPart1.length > 0 && (
-            <ExtraInterlude exercises={extraPart1} logs={logs} onLogChange={updateLog} />
+          {extra?.superset && (
+            <SupersetRound exercises={extra.superset} round={1} logs={logs} onLogChange={updateLog} />
           )}
 
           {program.blocks[1] && (
             <BlockSection block={program.blocks[1]} logs={logs} onLogChange={updateLog} dayColor={w645.color} />
           )}
 
-          {extraPart2.length > 0 && (
-            <ExtraInterlude exercises={extraPart2} logs={logs} onLogChange={updateLog} />
+          {extra?.superset && (
+            <SupersetRound exercises={extra.superset} round={2} logs={logs} onLogChange={updateLog} />
           )}
 
           {program.blocks[2] && (
             <BlockSection block={program.blocks[2]} logs={logs} onLogChange={updateLog} dayColor={w645.color} />
           )}
 
-          {/* Remaining blocks beyond 3 (shouldn't happen but guard anyway) */}
           {program.blocks.slice(3).map((block, i) => (
             <BlockSection key={i + 3} block={block} logs={logs} onLogChange={updateLog} dayColor={w645.color} />
           ))}
+
+          {extra?.finisher && (
+            <FinisherSection exercises={extra.finisher} logs={logs} onLogChange={updateLog} />
+          )}
         </div>
       )}
 
-      {/* For Wed/Sat/Sun: no 645 blocks — render the extra as a single section */}
+      {/* No main blocks (Wed/Sat/Sun) — render extra standalone */}
       {!program && extra && (
-        <div className="px-5 pt-10">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-3 border-l-2 border-indigo-500/40 pl-3">
-            15-min Extra · exercises
-          </div>
-          <div className="space-y-3">
-            {extra.exercises.map((ex) => (
-              <ExerciseRow
-                key={ex.name}
-                exercise={ex}
-                log={logs[ex.name] || {}}
-                onLogChange={(patch) => updateLog(ex.name, patch)}
-              />
-            ))}
-          </div>
+        <div className="px-5 pt-10 space-y-8">
+          {extra.superset && (
+            <SupersetRound exercises={extra.superset} round={1} logs={logs} onLogChange={updateLog} />
+          )}
+          {extra.finisher && (
+            <FinisherSection exercises={extra.finisher} logs={logs} onLogChange={updateLog} />
+          )}
         </div>
       )}
 
-      {/* Session notes — bottom, captures the whole day */}
+      {/* Session notes */}
       {!isRest && (
         <div className="px-5 pt-10">
           <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500 mb-2">Session notes</div>
@@ -526,11 +547,34 @@ function DayView({ week, day, entry, onUpdate, onBack }) {
   );
 }
 
-function ExtraInterlude({ exercises, logs, onLogChange }) {
+function SupersetRound({ exercises, round, logs, onLogChange }) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-3 border-l-2 border-indigo-500/40 pl-3">
-        + 15-min Extra
+        Superset · Round {round}
+      </div>
+      <div className="space-y-3">
+        {exercises.map((ex) => {
+          const logKey = `${ex.name}::r${round}`;
+          return (
+            <ExerciseRow
+              key={logKey}
+              exercise={ex}
+              log={logs[logKey] || {}}
+              onLogChange={(patch) => onLogChange(logKey, patch)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FinisherSection({ exercises, logs, onLogChange }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.2em] text-indigo-400 mb-3 border-l-2 border-indigo-500/40 pl-3">
+        Finisher
       </div>
       <div className="space-y-3">
         {exercises.map((ex) => (
@@ -569,26 +613,18 @@ function BlockSection({ block, logs, onLogChange, dayColor }) {
   );
 }
 
-// Fixed Tailwind class lookup so JIT can see them.
-const SETS_GRID = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  3: 'grid-cols-3',
-  4: 'grid-cols-4',
-};
-
 function ExerciseRow({ exercise, log, onLogChange }) {
   const { name, target, sets = 0, bw, demoKey } = exercise;
-  const weights = log.weights || [];
+  const setCount = Math.max(sets, 1);
+  const logSets = log.sets || [];
+  const targetReps = parseTargetReps(target);
   const demoUrl = DEMOS[demoKey] || DEMOS[name];
 
-  const setWeight = (i, value) => {
-    const next = [...weights];
-    next[i] = value;
-    onLogChange({ weights: next });
+  const updateSet = (i, field, value) => {
+    const next = [...logSets];
+    next[i] = { ...(next[i] || {}), [field]: value };
+    onLogChange({ sets: next });
   };
-
-  const tracked = sets > 0 && !bw;
 
   return (
     <div className="bg-neutral-900 rounded-lg p-4">
@@ -611,22 +647,26 @@ function ExerciseRow({ exercise, log, onLogChange }) {
         <div className="text-xs text-neutral-500 text-right flex-shrink-0 tabular-nums">{target}</div>
       </div>
 
-      {tracked && (
-        <div className={`grid ${SETS_GRID[sets]} gap-2 mb-2`}>
-          {Array.from({ length: sets }, (_, i) => (
-            <SetInput
+      <div className="space-y-2 mb-2">
+        {Array.from({ length: setCount }).map((_, i) => {
+          const savedReps = logSets[i]?.reps;
+          const repsValue = savedReps !== undefined ? savedReps : targetReps;
+          const isPrefilledReps = savedReps === undefined && targetReps !== '';
+          const weightValue = logSets[i]?.weight ?? '';
+          return (
+            <SetRow
               key={i}
-              setNum={i + 1}
-              value={weights[i] || ''}
-              onChange={(v) => setWeight(i, v)}
+              setNum={setCount > 1 ? i + 1 : null}
+              bw={bw}
+              reps={repsValue}
+              weight={weightValue}
+              isPrefilledReps={isPrefilledReps}
+              onRepsChange={(v) => updateSet(i, 'reps', v)}
+              onWeightChange={(v) => updateSet(i, 'weight', v)}
             />
-          ))}
-        </div>
-      )}
-
-      {bw && sets > 0 && (
-        <div className="text-[10px] uppercase tracking-[0.15em] text-neutral-600 mb-2">bodyweight</div>
-      )}
+          );
+        })}
+      </div>
 
       <input
         type="text"
@@ -639,18 +679,36 @@ function ExerciseRow({ exercise, log, onLogChange }) {
   );
 }
 
-function SetInput({ setNum, value, onChange }) {
+function SetRow({ setNum, bw, reps, weight, isPrefilledReps, onRepsChange, onWeightChange }) {
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-[0.15em] text-neutral-500 mb-1">Set {setNum}</div>
+    <div className="flex items-center gap-2">
+      {setNum !== null && (
+        <div className="text-[10px] uppercase tracking-[0.15em] text-neutral-500 w-7 flex-shrink-0 text-center">
+          {setNum}
+        </div>
+      )}
       <input
         type="text"
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="lbs"
-        className="w-full bg-neutral-950 rounded-md px-2 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 tabular-nums text-center"
+        inputMode="text"
+        value={reps}
+        onChange={(e) => onRepsChange(e.target.value)}
+        onFocus={(e) => { if (isPrefilledReps) e.target.select(); }}
+        placeholder="reps"
+        className={`flex-1 min-w-0 bg-neutral-950 rounded-md px-2 py-2 text-sm placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 tabular-nums text-center ${isPrefilledReps ? 'text-neutral-500' : 'text-neutral-100'}`}
       />
+      {!bw && (
+        <>
+          <span className="text-neutral-700 text-xs flex-shrink-0">×</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={weight}
+            onChange={(e) => onWeightChange(e.target.value)}
+            placeholder="lbs"
+            className="flex-1 min-w-0 bg-neutral-950 rounded-md px-2 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 tabular-nums text-center"
+          />
+        </>
+      )}
     </div>
   );
 }
