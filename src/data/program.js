@@ -2,17 +2,23 @@
 // Transcribed from official Beachbody 645 dumbbell tracker PDFs (Stages 1–4).
 //
 // Schema per exercise:
-//   name:   display name (used as log key — keep stable across edits)
+//   id:     stable slug used as the log key. Auto-derived from name unless
+//           overridden in opts (used to merge alias spellings — see below).
+//   name:   display name. Safe to edit; the id is what keys the logs.
 //   target: rep/time target (e.g. "15 reps", "30 sec", "15/15 reps")
-//   sets:   number of tracked sets (= weight input slots). 0 = filler/listed only.
-//   bw:     true if bodyweight (no weight input rendered, just notes)
+//   sets:   number of tracked sets. 0 means render a single row only.
+//   bw:     true if bodyweight (reps-only, no weight input)
 //
 // Only Mon/Tue/Thu/Fri have tracker PDFs. Wed (Mobility & Stability) and
 // Sat (Cardio 45) follow the BODi video without per-exercise tracking.
 
-const f = (name, target, opts = {}) => ({ name, target, sets: 0, ...opts }); // filler/iso
-const t = (name, target, sets, opts = {}) => ({ name, target, sets, ...opts }); // tracked
-const bw = (name, target, sets = 0) => ({ name, target, sets, bw: true });     // bodyweight
+export const slugify = (s) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+const withId = (ex) => ({ id: ex.id || slugify(ex.name), ...ex });
+const f = (name, target, opts = {}) => withId({ name, target, sets: 0, ...opts });          // filler/iso
+const t = (name, target, sets, opts = {}) => withId({ name, target, sets, ...opts });        // tracked
+const bw = (name, target, sets = 0, opts = {}) => withId({ name, target, sets, bw: true, ...opts }); // bodyweight
 
 export const PROGRAM = {
   // ─────────────────────────────────────────────────────────────────
@@ -61,7 +67,7 @@ export const PROGRAM = {
           t('Bent Over Row', '15 reps', 3),
         ]},
         { label: 'Block 2 · 4 min EMOM', exercises: [
-          t('Bicep Curl', '15 reps', 4),
+          t('Bicep Curl', '15 reps', 4, { id: 'db-bicep-curl' }),
         ]},
         { label: 'Block 3', exercises: [
           t('DB Thrust', '15 reps', 3),
@@ -73,7 +79,7 @@ export const PROGRAM = {
     Fri: {
       blocks: [
         { label: 'Block 1', exercises: [
-          t('Iso DB Scaption Raises', '30 reps', 3),
+          t('Iso DB Scaption Raises', '30 reps', 3, { id: 'iso-scaption-raises' }),
           f('Prone WY Raises', '15 reps'),
         ]},
         { label: 'Block 2', exercises: [
@@ -154,7 +160,7 @@ export const PROGRAM = {
         { label: 'Block 3', exercises: [
           t('SA Torque Press', '15/15 reps', 3),
           bw('Hollow Hold', '35 sec'),
-          t('Off Set Carry', '35 sec', 3),
+          t('Off Set Carry', '35 sec', 3, { id: 'offset-carry' }),
         ]},
       ],
     },
@@ -203,7 +209,7 @@ export const PROGRAM = {
           t('Bent Over Row', '10 reps', 3),
         ]},
         { label: 'Block 2 · 4 min EMOM', exercises: [
-          t('Bicep Curl', '10 reps', 4),
+          t('Bicep Curl', '10 reps', 4, { id: 'db-bicep-curl' }),
         ]},
         { label: 'Block 3', exercises: [
           t('Bridge Press', '10 reps', 3),
@@ -352,7 +358,7 @@ export const PROGRAM = {
         ]},
         { label: 'Block 3', exercises: [
           t('Around the World', '15 reps', 3),
-          t('DB Pull Over', '15 reps', 3),
+          t('DB Pull Over', '15 reps', 3, { id: 'db-pullover' }),
           bw('Beast Ab Drag', '40 sec', 3),
         ]},
       ],
@@ -436,7 +442,7 @@ export const PROGRAM = {
         ]},
         { label: 'Block 2', exercises: [
           t('Split Squat', '22.5/22.5 sec', 3),
-          bw('Beast Side Kick Throughs', '45 sec'),
+          bw('Beast Side Kick Throughs', '45 sec', 0, { id: 'beast-side-kick-through' }),
         ]},
         { label: 'Block 3', exercises: [
           t('DB Sumo Squat', '15 reps', 3),
@@ -461,7 +467,7 @@ export const PROGRAM = {
         { label: 'Block 3', exercises: [
           t('Side Lunge Rack', '20 reps', 3),
           t('DB Rotation Pull', '10/10 reps', 3),
-          t('Warrior Chops', '10/10 reps', 3),
+          t('Warrior Chops', '10/10 reps', 3, { id: 'warrior-chop' }),
         ]},
       ],
     },
@@ -494,7 +500,7 @@ export const PROGRAM = {
         ]},
         { label: 'Block 3', exercises: [
           t('Around the World', '10 reps', 3),
-          t('DB Pull Over', '10 reps', 3),
+          t('DB Pull Over', '10 reps', 3, { id: 'db-pullover' }),
           bw('Beast Ab Drag', '50 sec', 3),
         ]},
       ],
@@ -511,7 +517,7 @@ export const PROGRAM = {
         ]},
         { label: 'Block 3', exercises: [
           t('Goblet Squat', '10 reps', 3),
-          bw('Swimmers', '10 reps'),
+          bw('Swimmers', '10 reps', 0, { id: 'swimmer' }),
           t('Single Arm Carry', '25/25 sec', 3),
         ]},
       ],
@@ -648,7 +654,7 @@ export const PROGRAM = {
       blocks: [
         { label: 'Block 1', exercises: [
           t('Frontal Plane Lunge Shift', '50 sec', 3),
-          bw('Crab Reach Underswitch', '50 sec'),
+          bw('Crab Reach Underswitch', '50 sec', 0, { id: 'underswitch-crab-reach' }),
         ]},
         { label: 'Block 2', exercises: [
           t('Rainbow Squat', '16 reps', 3),
@@ -790,7 +796,7 @@ export const PROGRAM = {
       blocks: [
         { label: 'Block 1', exercises: [
           t('Frontal Plane Lunge Shift', '60 sec', 3),
-          bw('Crab Reach Underswitch', '60 sec'),
+          bw('Crab Reach Underswitch', '60 sec', 0, { id: 'underswitch-crab-reach' }),
         ]},
         { label: 'Block 2', exercises: [
           t('Rainbow Squat', '10 reps', 3),

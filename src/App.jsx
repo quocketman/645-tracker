@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, Check, Play } from 'lucide-react';
-import { PROGRAM } from './data/program';
+import { PROGRAM, slugify } from './data/program';
 
 const WEEKS = 13;
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -70,10 +70,14 @@ function parseTargetReps(target) {
   return m ? m[1].replace(/\s+/g, '') : '';
 }
 
+// Inject id into an exercise object: use provided id, else slugify(name).
+const withId = (ex) => ({ ...ex, id: ex.id || slugify(ex.name) });
+
 // Extras now split into `superset` (interleaved between main blocks, twice)
 // and `finisher` (after the last block). Days without a main workout render
-// both standalone.
-const getExtra = (week, day) => {
+// both standalone. _getExtraRaw returns objects without ids; `getExtra`
+// post-processes them through withId so logs key by id.
+const _getExtraRaw = (week, day) => {
   switch (day) {
     case 'Mon':
       return week % 2 === 1
@@ -81,7 +85,7 @@ const getExtra = (week, day) => {
             label: 'Upper Strength · 15 min',
             superset: [
               { name: 'Pull-ups', target: '5 reps', sets: 3, bw: true },
-              { name: 'DB Bicep Curls', target: '10 reps', sets: 3 }
+              { name: 'DB Bicep Curls', target: '10 reps', sets: 3, id: 'db-bicep-curl' }
             ],
             note: 'Superset: pull-ups + curls. Two rounds of 3 sets interleaved between strength blocks.'
           }
@@ -89,7 +93,7 @@ const getExtra = (week, day) => {
             label: 'Upper Strength · 15 min',
             superset: [
               { name: 'Push-ups', target: '10 reps', sets: 3, bw: true },
-              { name: 'Bent-over Rows', target: '10 reps', sets: 3 }
+              { name: 'Bent-over Rows', target: '10 reps', sets: 3, id: 'bent-over-row' }
             ],
             note: 'Superset: push-ups + rows. Two rounds of 3 sets interleaved between strength blocks.'
           };
@@ -141,7 +145,7 @@ const getExtra = (week, day) => {
       return {
         label: 'Arm Pump + Cardio · 15 min',
         superset: [
-          { name: 'DB Bicep Curls', target: '12 reps', sets: 3 },
+          { name: 'DB Bicep Curls', target: '12 reps', sets: 3, id: 'db-bicep-curl' },
           { name: 'Overhead Tricep Extensions', target: '12 reps', sets: 3 }
         ],
         finisher: [
@@ -201,7 +205,19 @@ const getExtra = (week, day) => {
   }
 };
 
-const STORAGE_KEY = 'tracker-645-v4';
+// Apply withId so every exercise carries a stable id (slug of its name unless
+// _getExtraRaw set an explicit id to merge with a main-workout alias).
+const getExtra = (week, day) => {
+  const raw = _getExtraRaw(week, day);
+  if (!raw) return null;
+  return {
+    ...raw,
+    superset: raw.superset?.map(withId),
+    finisher: raw.finisher?.map(withId),
+  };
+};
+
+const STORAGE_KEY = 'tracker-645-v5';
 
 export default function Tracker645() {
   const [data, setData] = useState(() => {
@@ -555,7 +571,7 @@ function SupersetRound({ exercises, round, logs, onLogChange }) {
       </div>
       <div className="space-y-3">
         {exercises.map((ex) => {
-          const logKey = `${ex.name}::r${round}`;
+          const logKey = `${ex.id}::r${round}`;
           return (
             <ExerciseRow
               key={logKey}
@@ -579,10 +595,10 @@ function FinisherSection({ exercises, logs, onLogChange }) {
       <div className="space-y-3">
         {exercises.map((ex) => (
           <ExerciseRow
-            key={ex.name}
+            key={ex.id}
             exercise={ex}
-            log={logs[ex.name] || {}}
-            onLogChange={(patch) => onLogChange(ex.name, patch)}
+            log={logs[ex.id] || {}}
+            onLogChange={(patch) => onLogChange(ex.id, patch)}
           />
         ))}
       </div>
@@ -602,10 +618,10 @@ function BlockSection({ block, logs, onLogChange, dayColor }) {
       <div className="space-y-3">
         {block.exercises.map((ex) => (
           <ExerciseRow
-            key={ex.name}
+            key={ex.id}
             exercise={ex}
-            log={logs[ex.name] || {}}
-            onLogChange={(patch) => onLogChange(ex.name, patch)}
+            log={logs[ex.id] || {}}
+            onLogChange={(patch) => onLogChange(ex.id, patch)}
           />
         ))}
       </div>
